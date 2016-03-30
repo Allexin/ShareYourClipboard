@@ -96,7 +96,7 @@ const QString cClipboardManager::CONF_ADDRESS_ID = "ADDRESSED_";
 void cClipboardManager::loadPreferences()
 {
     QSettings settings;
-    m_SecretKey = settings.value(cClipboardManager::CONF_SECRET_KEY_ID,generateKey(32)).toString().toUtf8();
+    m_SecretKey = settings.value(cClipboardManager::CONF_SECRET_KEY_ID,"").toString().toUtf8();
 
     int addrCount = settings.value(cClipboardManager::CONF_ADDRESSES_COUNT_ID,0).toInt();
     if (addrCount==0){
@@ -125,6 +125,7 @@ void cClipboardManager::sendNetworkData(QByteArray& data)
     int keyPos = 0;
     for (int i = 0; i<data.size(); ++i){
         data[i] = data[i] ^ key[keyPos];
+        keyPos++;
         if (keyPos>=key.size())
             keyPos=0;
     }
@@ -142,7 +143,8 @@ void cClipboardManager::sendNetworkData(QByteArray& data)
     keyPos = 0;
     if (m_SecretKey.size()>0)
         for (int i = 0; i<package.size(); ++i){
-            package[i] = package[i] ^ m_SecretKey[keyPos];
+            package[i] = package[i] ^ m_SecretKey.constData()[keyPos];
+            keyPos++;
             if (keyPos>=m_SecretKey.size())
                 keyPos = 0;
         }
@@ -176,7 +178,9 @@ void cClipboardManager::receivedNetworkPackage(QByteArray& package)
             keyPos = 0;
     }
 
-    if (getSimpleCheckSum(package,package.size()-4)!=*(int*)(&(package.constData()[package.size()-4])))
+    int checkSum = getSimpleCheckSum(package,package.size()-4);
+    int receivedCheckSum = *((int*)(&(package.constData()[package.size()-4])));
+    if (checkSum!=receivedCheckSum)
         return;
 
     cReadStream stream(package);
@@ -209,6 +213,7 @@ void cClipboardManager::receivedNetworkPackage(QByteArray& package)
     for (int i = 0; i<contentSize; ++i){
         char c = stream.read<char>();
         content[i] = c ^ key[keyPos];
+        keyPos++;
         if (keyPos>=keySize)
             keyPos = 0;
         if (stream.atEnd())
@@ -263,6 +268,8 @@ cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0)
     m_Clipboard = clipboard;
     connect(clipboard, SIGNAL(changed(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
     m_CurrentState = ENABLED;
+
+    loadPreferences();
 }
 
 QByteArray cClipboardManager::generateKey(int length)

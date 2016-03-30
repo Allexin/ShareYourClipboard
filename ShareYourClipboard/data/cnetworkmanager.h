@@ -39,7 +39,7 @@ public:
 signals:
     void dataReceived(QByteArray data);
 public slots:
-    void sendData(QByteArray data, QVector<QHostAddress> addresses);
+    void sendData(QByteArray data, QVector<QHostAddress>& addresses);
 protected slots:
     void readyRead();
 };

@@ -35,10 +35,12 @@ QString cNetworkManager::getAddress()
     return m_Server->localAddress().toString();
 }
 
-void cNetworkManager::sendData(QByteArray data, QVector<QHostAddress> addresses)
+void cNetworkManager::sendData(QByteArray data, QVector<QHostAddress>& addresses)
 {
-    for (int i = 0; i< addresses.size(); ++i)
+    for (int i = 0; i< addresses.size(); ++i){
         m_Server->writeDatagram(data,data.size(),addresses[i],UDP_PORT);
+        qDebug() << "sended to address: " << addresses[i].toString();
+    }
 
 }
 
