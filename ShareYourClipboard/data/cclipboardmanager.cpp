@@ -197,7 +197,7 @@ void cClipboardManager::receivedNetworkPackage(QByteArray& package)
     if (keySize!=DISPOSABLE_KEY_SIZE)
         return;
 
-    std::shared_ptr<char> keyPtr(new char(keySize));
+    std::shared_ptr<char> keyPtr(new char[keySize], std::default_delete<char[]>());
     char* key = keyPtr.get();
     stream.readRaw(key,keySize);
     if (stream.atEnd())
@@ -242,7 +242,7 @@ void cClipboardManager::receivedNetworkClipboardText(QByteArray &data)
     cReadStream stream(data);
     stream.skip(sizeof(int)); //skip data type
     int textSize = stream.read<int>();
-    std::shared_ptr<char> textPtr(new char(textSize+1));
+    std::shared_ptr<char> textPtr(new char[textSize+1], std::default_delete<char[]>());
     char* text = textPtr.get();
     text[textSize] = 0;
     stream.readRaw(text,textSize);
