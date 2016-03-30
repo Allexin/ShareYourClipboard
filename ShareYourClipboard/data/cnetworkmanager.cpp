@@ -20,25 +20,41 @@
 
 cNetworkManager::cNetworkManager(QObject *parent) : QObject(parent)
 {
-    m_Server.bind(QHostAddress::Any, UDP_PORT);
-    connect(&m_Server, SIGNAL(readyRead()), this, SLOT(readyRead()));
+    m_Server = new QUdpSocket(this);
+    if(!m_Server->bind(QHostAddress::AnyIPv4, UDP_PORT))
+        qDebug() << "can't bind to port " << UDP_PORT;
+    connect(m_Server, SIGNAL(readyRead()), this, SLOT(readyRead()));
+
+    m_Client = new QUdpSocket(this);
+
+    qDebug() << "start";
 }
 
-void cNetworkManager::sendData(QByteArray data)
+QString cNetworkManager::getAddress()
 {
-    m_Client.writeDatagram(data,QHostAddress::Broadcast,UDP_PORT);
+    return m_Server->localAddress().toString();
+}
+
+void cNetworkManager::sendData(QByteArray data, QVector<QHostAddress> addresses)
+{
+    for (int i = 0; i< addresses.size(); ++i)
+        m_Server->writeDatagram(data,data.size(),addresses[i],UDP_PORT);
+
 }
 
 void cNetworkManager::readyRead()
 {
-    QByteArray buffer;
-    buffer.resize(m_Server.pendingDatagramSize());
+    qDebug() << "received";
+    while (m_Server->hasPendingDatagrams()){
+        QByteArray buffer;
+        buffer.resize(m_Server->pendingDatagramSize());
 
-    QHostAddress sender;
-    quint16 senderPort;
+        QHostAddress sender;
+        quint16 senderPort;
 
-    m_Server.readDatagram(buffer.data(), buffer.size(), &sender, &senderPort);
-    emit dataReceived(buffer);
+        m_Server->readDatagram(buffer.data(), buffer.size(), &sender, &senderPort);
+        emit dataReceived(buffer);
+    }
 }
 
 

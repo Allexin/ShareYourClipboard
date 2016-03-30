@@ -90,11 +90,24 @@ int getSimpleCheckSum(QByteArray& buffer, int size = -1){
 }
 
 const QString cClipboardManager::CONF_SECRET_KEY_ID = "SECRET_KEY";
+const QString cClipboardManager::CONF_ADDRESSES_COUNT_ID = "ADDRESSED_COUNT";
+const QString cClipboardManager::CONF_ADDRESS_ID = "ADDRESSED_";
 
 void cClipboardManager::loadPreferences()
 {
     QSettings settings;
     m_SecretKey = settings.value(cClipboardManager::CONF_SECRET_KEY_ID,generateKey(32)).toString().toUtf8();
+
+    int addrCount = settings.value(cClipboardManager::CONF_ADDRESSES_COUNT_ID,0).toInt();
+    if (addrCount==0){
+        settings.setValue(cClipboardManager::CONF_ADDRESSES_COUNT_ID,1);
+        settings.setValue(cClipboardManager::CONF_ADDRESS_ID+"0","255.255.255.255");
+        settings.sync();
+    }
+
+    m_Addresses.clear();
+    for (int i = 0; i<addrCount; ++i)
+        m_Addresses.push_back(QHostAddress(settings.value(cClipboardManager::CONF_ADDRESS_ID+QString::number(i),"").toString()));
 }
 
 const char* NETWORK_PACKAGE_PREFIX = "SYCNP";
@@ -133,7 +146,7 @@ void cClipboardManager::sendNetworkData(QByteArray& data)
             if (keyPos>=m_SecretKey.size())
                 keyPos = 0;
         }
-    m_NetworkManager.sendData(package);
+    m_NetworkManager.sendData(package,m_Addresses);
 }
 
 void cClipboardManager::sendClipboardText(QString text)
@@ -148,6 +161,7 @@ void cClipboardManager::sendClipboardText(QString text)
     stream.write<int>(getSimpleCheckSum(data));
     m_LastClipboard = text;
     qDebug() << "clipboard sended: " << m_LastClipboard;
+    sendNetworkData(data);
     emit onStateChanged(SENDED);
 }
 
@@ -259,6 +273,11 @@ QByteArray cClipboardManager::generateKey(int length)
         key[i] = 33+rand() % 92;
     }
     return key;
+}
+
+QString cClipboardManager::getAddress()
+{
+    return m_NetworkManager.getAddress();
 }
 
 void cClipboardManager::onClipboardReceived(QClipboard::Mode mode)

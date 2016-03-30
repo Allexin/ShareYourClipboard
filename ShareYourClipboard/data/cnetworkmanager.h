@@ -29,15 +29,17 @@ class cNetworkManager : public QObject
 public:
     static const int    UDP_PORT = 26855;
 protected:
-    QUdpSocket          m_Client;
-    QUdpSocket          m_Server;
+    QUdpSocket*         m_Client;
+    QUdpSocket*         m_Server;
 public:
     explicit cNetworkManager(QObject *parent = 0);
+
+    QString getAddress();
 
 signals:
     void dataReceived(QByteArray data);
 public slots:
-    void sendData(QByteArray data);
+    void sendData(QByteArray data, QVector<QHostAddress> addresses);
 protected slots:
     void readyRead();
 };

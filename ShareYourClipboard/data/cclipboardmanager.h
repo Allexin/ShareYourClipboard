@@ -29,6 +29,8 @@ class cClipboardManager : public QObject
     Q_OBJECT
 public:
     static const QString CONF_SECRET_KEY_ID;
+    static const QString CONF_ADDRESSES_COUNT_ID;
+    static const QString CONF_ADDRESS_ID;
     enum eClipboardState{
         DISABLED,
         ENABLED,
@@ -36,6 +38,7 @@ public:
         SENDED
     };
 protected:
+    QVector<QHostAddress> m_Addresses;
     cNetworkManager     m_NetworkManager;
     eClipboardState     m_CurrentState;
     QByteArray          m_SecretKey;
@@ -54,6 +57,7 @@ public:
     explicit cClipboardManager(QClipboard* clipboard);
 
     QByteArray generateKey(int length);
+    QString getAddress();
 signals:
     void onStateChanged(cClipboardManager::eClipboardState newState);
 protected slots:
