@@ -24,10 +24,13 @@
 #include <QUdpSocket>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QMap>
 
 class cTcpSimpleServer: public QTcpServer
 {
     Q_OBJECT
+protected:
+    QMap<QTcpSocket*, QByteArray> m_ReceivedData;
 public:
     cTcpSimpleServer(int port);
 

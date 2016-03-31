@@ -94,16 +94,16 @@ void cTcpSimpleServer::onReadyRead()
     qDebug() << "tcp received";
     QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
 
-    QByteArray data;
-    while (socket->state() == QTcpSocket::ConnectedState)
-        data.append(socket->readAll());
-    emit dataReady(data,socket->peerAddress());
-    socket->disconnectFromHost();
+    m_ReceivedData[socket].append(socket->readAll());
 }
 
 void cTcpSimpleServer::onDisconnected()
 {
     QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
+    if (m_ReceivedData.contains(socket)){
+        emit dataReady(m_ReceivedData[socket],socket->peerAddress());
+        m_ReceivedData.remove(socket);
+    }
     socket->close();
     socket->deleteLater();
 }
