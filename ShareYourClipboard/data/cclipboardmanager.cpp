@@ -153,7 +153,7 @@ void cClipboardManager::sendNetworkResponseFailure(int command, int failureCode,
     stream.write<int>(command);
     stream.write<int>(failureCode);
 
-
+    sendNetworkData(data, address);
 }
 
 void cClipboardManager::sendNetworkRequestFilesGetListHandle(QHostAddress address)
