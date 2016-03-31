@@ -49,6 +49,10 @@ protected:
 
     void sendNetworkResponseFailure(int command, int failureCode, QHostAddress address);
 protected:
+    void sendNetworkRequestFilesGetListHandle(QHostAddress address);
+
+     void receivedNetworkResponse(QByteArray &data, QHostAddress address);
+protected:
     cFileLoader         m_FileLoader;
     void receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address);
     void receivedNetworkFilesCloseListHandle(QByteArray &data);
@@ -89,6 +93,7 @@ protected slots:
 public slots:
     void onPreferencesChanged();
     void switchState();
+    void pasteFiles();
 };
 
 #endif // CCLIPBOARDMANAGER_H

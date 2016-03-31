@@ -31,6 +31,8 @@ cTrayIcon::cTrayIcon(cClipboardManager *ClipboardManager):QSystemTrayIcon()
     setContextMenu(&m_Menu);
     m_Menu.addAction(tr("Disable"))->setData("SWITCH");
     m_Menu.addSeparator();
+    m_Menu.addAction(tr("Paste files..."))->setData("PASTE_FILES");
+    m_Menu.addSeparator();
     m_Menu.addAction(tr("Settings..."))->setData("SETTINGS");
     m_Menu.addSeparator();
     m_Menu.addAction(tr("Exit"))->setData("EXIT");
@@ -88,6 +90,11 @@ void cTrayIcon::onMenuSelection(QAction *menuAction)
 
     if (id=="SWITCH"){
         emit switchState();
+        return;
+    }
+
+    if (id=="PASTE_FILES"){
+        emit pasteFiles();
         return;
     }
 }

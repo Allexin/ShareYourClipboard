@@ -10,7 +10,7 @@
 #include <QTimer>
 #include <QDir>
 
-struct sFileLoaderClipboard;
+class sFileLoaderClipboard;
 
 typedef QString StringUuid;
 

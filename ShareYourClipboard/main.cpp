@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     qDebug() << "init tray icon\n";
     cTrayIcon trIcon(&manager);
     QObject::connect(&trIcon, SIGNAL(switchState()), &manager, SLOT(switchState()));
+    QObject::connect(&trIcon, SIGNAL(pasteFiles()), &manager, SLOT(pasteFiles()));
     QObject::connect(&manager, SIGNAL(onStateChanged(cClipboardManager::eClipboardState)), &trIcon, SLOT(setState(cClipboardManager::eClipboardState)));
 
     qDebug() << "init settings window\n";

@@ -156,6 +156,30 @@ void cClipboardManager::sendNetworkResponseFailure(int command, int failureCode,
 
 }
 
+void cClipboardManager::sendNetworkRequestFilesGetListHandle(QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE);
+    sendNetworkData(data,&address);
+    qDebug() << " try get files from " << address.toString();
+}
+
+void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip @response@
+    int command = stream.read<int>();
+    int result = stream.read<int>();
+    if (result!=0){
+        qDebug() << "response for command " << command << " is error " << result;
+        return;
+    }
+
+    //TODO - process success packages
+}
+
 void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address)
 {
     cReadStream stream(data);
@@ -453,6 +477,9 @@ void cClipboardManager::receivedNetworkData(QByteArray &data, QHostAddress addre
         case NETWORK_DATA_TYPE_REQUEST:
             receivedNetworkRequest(data,address);
         return;
+        case NETWORK_DATA_TYPE_RESPONSE:
+            receivedNetworkResponse(data,address);
+        return;
     }
 }
 
@@ -556,5 +583,11 @@ void cClipboardManager::switchState()
         setState(ENABLED);
     else
         setState(DISABLED);
+}
+
+void cClipboardManager::pasteFiles()
+{
+    if (m_CurrentState==RECEIVED)
+        sendNetworkRequestFilesGetListHandle(m_SenderAddress);
 }
 
