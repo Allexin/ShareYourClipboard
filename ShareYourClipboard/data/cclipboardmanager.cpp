@@ -335,6 +335,9 @@ void cClipboardManager::sendNetworkResponseFilesGetFilePart(QHostAddress address
 
 void cClipboardManager::sendNetworkData(QByteArray& data, QHostAddress* address)
 {
+    cWriteStream checkSumStream(data);
+    checkSumStream.write<int>(getSimpleCheckSum(data));
+
     int keySize = DISPOSABLE_KEY_SIZE;
     QByteArray key = generateKey(keySize);
     int keyPos = 0;
@@ -375,8 +378,7 @@ void cClipboardManager::sendClipboardText(QString text)
     cWriteStream stream(data);
 
     stream.write<int>(NETWORK_DATA_TYPE_CLIPBOARD_TEXT);
-    stream.writeUtf8(text);
-    stream.write<int>(getSimpleCheckSum(data));
+    stream.writeUtf8(text);    
     m_LastClipboard = text;
     qDebug() << "clipboard sended: " << m_LastClipboard;
     sendNetworkData(data,NULL);
