@@ -162,6 +162,8 @@ void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHos
     stream.skip(sizeof(int));//skip request
     int command = stream.read<int>();
 
+    qDebug() << "receivedNetworkFilesGetListHandle";
+
     if (m_CurrentState!=SENDED){
         sendNetworkResponseFailure(command,NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES,address);
         return;
@@ -197,6 +199,8 @@ void cClipboardManager::receivedNetworkFilesCloseListHandle(QByteArray &data)
     stream.skip(sizeof(int));//skip request
     int command = stream.read<int>();
 
+    qDebug() << "receivedNetworkFilesCloseListHandle";
+
     StringUuid clipboardUuid = stream.readUtf8();
     m_FileLoader.closeClipboard(clipboardUuid);
 }
@@ -209,6 +213,9 @@ void cClipboardManager::receivedNetworkFilesGetFileHandle(QByteArray &data, QHos
 
     StringUuid clipboardUuid = stream.readUtf8();
     QString relativeFileName = stream.readUtf8();
+
+    qDebug() << "receivedNetworkFilesGetFileHandle " << relativeFileName;
+
     sFileLoaderFileInfo* file =  m_FileLoader.openFile(clipboardUuid,relativeFileName);
     if (!file){
         sendNetworkResponseFailure(command,NETWORK_ERROR_CANT_OPEN_REMOTE_FILE,address);
@@ -223,6 +230,8 @@ void cClipboardManager::receivedNetworkFilesCloseFileHandle(QByteArray &data)
     cReadStream stream(data);
     stream.skip(sizeof(int));//skip request
     int command = stream.read<int>();
+
+    qDebug() << "receivedNetworkFilesCloseFileHandle";
 
     StringUuid clipboardUuid = stream.readUtf8();
     StringUuid fileUuid = stream.readUtf8();
@@ -239,6 +248,9 @@ void cClipboardManager::receivedNetworkFilesGetFilePart(QByteArray &data, QHostA
     StringUuid fileUuid = stream.readUtf8();
     int filePartStart = stream.read<int>();
     int filePartSize = stream.read<int>();
+
+    qDebug() << "receivedNetworkFilesGetFilePart " <<filePartStart;
+
     if (filePartSize>MAX_FILE_PART_SIZE){
         sendNetworkResponseFailure(command,NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART,address);
         return;
@@ -490,7 +502,7 @@ void cClipboardManager::setState(cClipboardManager::eClipboardState newState)
 
 cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0)
 {
-    connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray&,QHostAddress)), this, SLOT(onNetworkClipboardReceived(QByteArray&,QHostAddress)));
+    connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray&,QHostAddress)), this, SLOT(onNetworkDataReceived(QByteArray&,QHostAddress)));
     m_Clipboard = clipboard;
     connect(clipboard, SIGNAL(changed(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
     m_CurrentState = ENABLED;
