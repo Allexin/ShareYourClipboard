@@ -23,6 +23,7 @@
 #include <QClipboard>
 #include <QMimeData>
 #include "cnetworkmanager.h"
+#include "cfileloader.h"
 
 class cClipboardManager : public QObject
 {
@@ -37,19 +38,41 @@ public:
         RECEIVED,
         SENDED
     };
+    static const int NETWORK_ERROR_NO= 0;
+    static const int NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES = 1;
+    static const int NETWORK_ERROR_CANT_OPEN_REMOTE_FILE = 2;
+    static const int NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART = 3;
+    static const int NETWORK_ERROR_CANT_READ_REMOTE_FILE = 4;
+protected:
+    static const int MAX_FILE_PART_SIZE = 65536;
+    void sendNetworkData(QByteArray& data, QHostAddress* address);
+
+    void sendNetworkResponseFailure(int command, int failureCode, QHostAddress address);
+protected:
+    cFileLoader         m_FileLoader;
+    void receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address);
+    void receivedNetworkFilesCloseListHandle(QByteArray &data);
+    void receivedNetworkFilesGetFileHandle(QByteArray &data, QHostAddress address);
+    void receivedNetworkFilesCloseFileHandle(QByteArray &data);
+    void receivedNetworkFilesGetFilePart(QByteArray &data, QHostAddress address);
+    void sendNetworkResponseFilesGetListHandle(QHostAddress address, sFileLoaderClipboard* clipboard);
+    void sendNetworkResponseFilesGetFileHandle(QHostAddress address, StringUuid& clipboardUuid, sFileLoaderFileInfo* fileInfo, QString relativeFileName);
+    void sendNetworkResponseFilesGetFilePart(QHostAddress address, StringUuid& clipboardUuid, sFileLoaderFileInfo* fileInfo, const char* fileData, int start, int size);
+
+    void receivedNetworkRequest(QByteArray &data, QHostAddress address);
 protected:
     QVector<QHostAddress> m_Addresses;
     cNetworkManager     m_NetworkManager;
     eClipboardState     m_CurrentState;
+    QHostAddress        m_SenderAddress;
     QByteArray          m_SecretKey;
     QString             m_LastClipboard;
     QClipboard*         m_Clipboard;
-    void loadPreferences();
-    void sendNetworkData(QByteArray& data);
+    void loadPreferences();    
     void sendClipboardText(QString text);
-    void receivedNetworkPackage(QByteArray &package);
-    void receivedNetworkData(QByteArray &data);
-    void receivedNetworkClipboardText(QByteArray &data);
+    void receivedNetworkPackage(QByteArray &package, QHostAddress address);
+    void receivedNetworkData(QByteArray &data, QHostAddress address);
+    void receivedNetworkClipboardText(QByteArray &data, QHostAddress address);
     void setState(cClipboardManager::eClipboardState newState);
 public:
 
@@ -62,7 +85,7 @@ signals:
     void onStateChanged(cClipboardManager::eClipboardState newState);
 protected slots:
     void onClipboardReceived(QClipboard::Mode mode);
-    void onNetworkClipboardReceived(QByteArray data);
+    void onNetworkDataReceived(QByteArray& data, QHostAddress address);
 public slots:
     void onPreferencesChanged();
     void switchState();

@@ -54,6 +54,16 @@ public:
         return val;
     }
 
+    QString readUtf8(){
+        int length = read<int>();
+        if (length>m_Data.size())
+            return "";
+        std::shared_ptr<char> stringPtr(new char[length], std::default_delete<char[]>());
+        char* string = stringPtr.get();
+        readRaw(string,length);
+        return QString::fromUtf8(string,length);
+    }
+
 
     bool atEnd(){
         return m_Pos==m_Data.size();
@@ -77,6 +87,12 @@ public:
         static_assert(std::is_same<T, char>::value || std::is_same<T, int>::value,
                         "only simple types allowed");
         writeRaw(&value, sizeof(T));
+    }
+
+    void writeUtf8(QString str){
+        QByteArray string = str.toUtf8();
+        write<int>(string.size());
+        writeRaw(string.constData(),string.size());
     }
 };
 
@@ -117,8 +133,195 @@ const int NETWORK_PACKAGE_VERSION = 1;
 const int DISPOSABLE_KEY_SIZE = 64;
 
 const int NETWORK_DATA_TYPE_CLIPBOARD_TEXT = 1;
+const int NETWORK_DATA_TYPE_REQUEST = 2;
+const int NETWORK_DATA_TYPE_RESPONSE = 3;
 
-void cClipboardManager::sendNetworkData(QByteArray& data)
+
+const int NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE     = 1001;
+const int NETWORK_DATA_CLIPBOARD_FILES_CLOSE_LIST_HANDLE   = 1002;
+
+const int NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE     = 1011;
+const int NETWORK_DATA_CLIPBOARD_FILES_CLOSE_FILE_HANDLE   = 1012;
+const int NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART       = 1013;
+
+
+void cClipboardManager::sendNetworkResponseFailure(int command, int failureCode, QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_RESPONSE);
+    stream.write<int>(command);
+    stream.write<int>(failureCode);
+
+
+}
+
+void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip request
+    int command = stream.read<int>();
+
+    if (m_CurrentState!=SENDED){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES,address);
+        return;
+    }
+
+    QStringList items = m_LastClipboard.split("\n");
+    QStringList files;
+    for (int i = 0; i<items.size(); i++){
+        QString str = items[i].trimmed();
+        if (str.mid(0,8)=="file:///"){
+            files.append(str.mid(8));
+        }
+    }
+
+    if (files.size()==0){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES,address);
+        return;
+    }
+
+    sFileLoaderClipboard* clipboard = m_FileLoader.openClipboardFiles(files);
+    if (clipboard==NULL){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES,address);
+        return;
+    }
+
+    sendNetworkResponseFilesGetListHandle(address,clipboard);
+
+}
+
+void cClipboardManager::receivedNetworkFilesCloseListHandle(QByteArray &data)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip request
+    int command = stream.read<int>();
+
+    StringUuid clipboardUuid = stream.readUtf8();
+    m_FileLoader.closeClipboard(clipboardUuid);
+}
+
+void cClipboardManager::receivedNetworkFilesGetFileHandle(QByteArray &data, QHostAddress address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip request
+    int command = stream.read<int>();\
+
+    StringUuid clipboardUuid = stream.readUtf8();
+    QString relativeFileName = stream.readUtf8();
+    sFileLoaderFileInfo* file =  m_FileLoader.openFile(clipboardUuid,relativeFileName);
+    if (!file){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_CANT_OPEN_REMOTE_FILE,address);
+        return;
+    }
+
+    sendNetworkResponseFilesGetFileHandle(address,clipboardUuid,file,relativeFileName);
+}
+
+void cClipboardManager::receivedNetworkFilesCloseFileHandle(QByteArray &data)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip request
+    int command = stream.read<int>();
+
+    StringUuid clipboardUuid = stream.readUtf8();
+    StringUuid fileUuid = stream.readUtf8();
+    m_FileLoader.closeFile(clipboardUuid,fileUuid);
+}
+
+void cClipboardManager::receivedNetworkFilesGetFilePart(QByteArray &data, QHostAddress address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip request
+    int command = stream.read<int>();
+
+    StringUuid clipboardUuid = stream.readUtf8();
+    StringUuid fileUuid = stream.readUtf8();
+    int filePartStart = stream.read<int>();
+    int filePartSize = stream.read<int>();
+    if (filePartSize>MAX_FILE_PART_SIZE){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART,address);
+        return;
+    }
+
+    std::shared_ptr<char> dataPtr(new char[filePartSize], std::default_delete<char[]>());
+    char* fileData = dataPtr.get();
+    sFileLoaderFileInfo* readedFrom = m_FileLoader.getFilePart(clipboardUuid,fileUuid,filePartStart,filePartSize,fileData);
+    if (!readedFrom){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_CANT_READ_REMOTE_FILE,address);
+        return;
+    }
+    sendNetworkResponseFilesGetFilePart(address,clipboardUuid,readedFrom,fileData,filePartStart,filePartSize);
+}
+
+void writeItemToStream(cWriteStream& stream, sFileLoaderFileInfo* file, const QString& path){
+    stream.writeUtf8(path+file->fileName);
+    stream.write<int>(file->fileSize);
+    stream.write<int>(file->isDir?1:0);
+    stream.write<int>(file->isExecutable?1:0);
+    if (file->isDir){
+        stream.write<int>(file->chields.count());
+        foreach(auto item, file->chields){
+            writeItemToStream(stream,item,path+file->fileName+"/");
+        }
+    }
+    else
+        stream.write<int>(0);
+}
+
+void cClipboardManager::sendNetworkResponseFilesGetListHandle(QHostAddress address, sFileLoaderClipboard *clipboard)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+
+    stream.write<int>(NETWORK_DATA_TYPE_RESPONSE);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE);
+    stream.write<int>(NETWORK_ERROR_NO);
+
+    stream.writeUtf8(clipboard->handle);
+    stream.write<int>(clipboard->totalSize);
+    stream.write<int>(clipboard->rootFiles.count());
+    foreach(auto item, clipboard->rootFiles){
+        writeItemToStream(stream,item,"");
+    }
+    sendNetworkData(data,&address);
+}
+
+void cClipboardManager::sendNetworkResponseFilesGetFileHandle(QHostAddress address, StringUuid &clipboardUuid, sFileLoaderFileInfo *fileInfo, QString relativeFileName)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+
+    stream.write<int>(NETWORK_DATA_TYPE_RESPONSE);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE);
+    stream.write<int>(NETWORK_ERROR_NO);
+
+    stream.writeUtf8(clipboardUuid);
+    stream.writeUtf8(fileInfo->handle);
+    stream.writeUtf8(relativeFileName);
+    stream.write<int>(fileInfo->isExecutable?1:0);
+    stream.write<int>(fileInfo->fileSize);
+    sendNetworkData(data,&address);
+}
+
+void cClipboardManager::sendNetworkResponseFilesGetFilePart(QHostAddress address, StringUuid &clipboardUuid, sFileLoaderFileInfo *fileInfo, const char *fileData, int start, int size)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+
+    stream.write<int>(NETWORK_DATA_TYPE_RESPONSE);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART);
+    stream.write<int>(NETWORK_ERROR_NO);
+
+    stream.writeUtf8(clipboardUuid);
+    stream.writeUtf8(fileInfo->handle);
+    stream.write<int>(start);
+    stream.write<int>(size);
+    stream.writeRaw(fileData,size);
+    sendNetworkData(data,&address);
+}
+
+void cClipboardManager::sendNetworkData(QByteArray& data, QHostAddress* address)
 {
     int keySize = DISPOSABLE_KEY_SIZE;
     QByteArray key = generateKey(keySize);
@@ -148,7 +351,10 @@ void cClipboardManager::sendNetworkData(QByteArray& data)
             if (keyPos>=m_SecretKey.size())
                 keyPos = 0;
         }
-    m_NetworkManager.sendData(package,m_Addresses);
+    if (address)
+        m_NetworkManager.sendDataOverTcp(package,*address);
+    else
+        m_NetworkManager.sendData(package,m_Addresses);
 }
 
 void cClipboardManager::sendClipboardText(QString text)
@@ -157,17 +363,15 @@ void cClipboardManager::sendClipboardText(QString text)
     cWriteStream stream(data);
 
     stream.write<int>(NETWORK_DATA_TYPE_CLIPBOARD_TEXT);
-    QByteArray buf = text.toUtf8();
-    stream.write<int>(buf.size());
-    stream.writeRaw(buf.constData(),buf.size());
+    stream.writeUtf8(text);
     stream.write<int>(getSimpleCheckSum(data));
     m_LastClipboard = text;
     qDebug() << "clipboard sended: " << m_LastClipboard;
-    sendNetworkData(data);
+    sendNetworkData(data,NULL);
     emit onStateChanged(SENDED);
 }
 
-void cClipboardManager::receivedNetworkPackage(QByteArray& package)
+void cClipboardManager::receivedNetworkPackage(QByteArray& package, QHostAddress address)
 {
     int keyPos = 0;
     if (m_SecretKey.size()>0)
@@ -223,35 +427,57 @@ void cClipboardManager::receivedNetworkPackage(QByteArray& package)
 
     if (getSimpleCheckSum(content,content.size()-4)!=*(int*)(&(content.constData()[content.size()-4])))
         return;
-    receivedNetworkData(content);
+    receivedNetworkData(content,address);
 }
 
-void cClipboardManager::receivedNetworkData(QByteArray &data)
+void cClipboardManager::receivedNetworkData(QByteArray &data, QHostAddress address)
 {
     cReadStream stream(data);
     int type = stream.read<int>();
     switch(type) {
         case NETWORK_DATA_TYPE_CLIPBOARD_TEXT:
-            receivedNetworkClipboardText(data);
+            receivedNetworkClipboardText(data,address);
+        return;
+        case NETWORK_DATA_TYPE_REQUEST:
+            receivedNetworkRequest(data,address);
         return;
     }
 }
 
-void cClipboardManager::receivedNetworkClipboardText(QByteArray &data)
+void cClipboardManager::receivedNetworkRequest(QByteArray &data, QHostAddress address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip type
+    int request = stream.read<int>();
+    switch(request){
+    case NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE  :
+        receivedNetworkFilesGetListHandle(data,address);
+        return;
+    case NETWORK_DATA_CLIPBOARD_FILES_CLOSE_LIST_HANDLE:
+        receivedNetworkFilesCloseListHandle(data);
+        return;
+    case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE   :
+        receivedNetworkFilesGetFileHandle(data,address);
+        return;
+    case NETWORK_DATA_CLIPBOARD_FILES_CLOSE_FILE_HANDLE :
+        receivedNetworkFilesCloseFileHandle(data);
+        return;
+    case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART     :
+        receivedNetworkFilesGetFilePart(data,address);
+        return;
+    }
+}
+
+void cClipboardManager::receivedNetworkClipboardText(QByteArray &data, QHostAddress address)
 {
     cReadStream stream(data);
     stream.skip(sizeof(int)); //skip data type
-    int textSize = stream.read<int>();
-    std::shared_ptr<char> textPtr(new char[textSize+1], std::default_delete<char[]>());
-    char* text = textPtr.get();
-    text[textSize] = 0;
-    stream.readRaw(text,textSize);
-
-    QString string(text);
+    QString string = stream.readUtf8();
     qDebug() << "received clipboard: " << string;
     if (string!=m_LastClipboard && m_CurrentState!=DISABLED){
         m_LastClipboard = string;
-        setState(RECEIVED);
+        m_SenderAddress = address;
+        setState(RECEIVED);        
         m_Clipboard->setText(string,QClipboard::Clipboard);
     }
 }
@@ -264,7 +490,7 @@ void cClipboardManager::setState(cClipboardManager::eClipboardState newState)
 
 cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0)
 {
-    connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray)), this, SLOT(onNetworkClipboardReceived(QByteArray)));
+    connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray&,QHostAddress)), this, SLOT(onNetworkClipboardReceived(QByteArray&,QHostAddress)));
     m_Clipboard = clipboard;
     connect(clipboard, SIGNAL(changed(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
     m_CurrentState = ENABLED;
@@ -302,9 +528,9 @@ void cClipboardManager::onClipboardReceived(QClipboard::Mode mode)
     }
 }
 
-void cClipboardManager::onNetworkClipboardReceived(QByteArray data)
+void cClipboardManager::onNetworkDataReceived(QByteArray &data, QHostAddress address)
 {
-    receivedNetworkPackage(data);
+    receivedNetworkPackage(data,address);
 }
 
 void cClipboardManager::onPreferencesChanged()

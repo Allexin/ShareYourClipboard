@@ -22,26 +22,46 @@
 #include <QObject>
 #include <QByteArray>
 #include <QUdpSocket>
+#include <QTcpServer>
+#include <QTcpSocket>
+
+class cTcpSimpleServer: public QTcpServer
+{
+    Q_OBJECT
+public:
+    cTcpSimpleServer(int port);
+
+    virtual void incomingConnection(qintptr handle) override;
+signals:
+    void dataReady(QByteArray& data, QHostAddress);
+protected slots:
+    void onReadyRead();
+    void onDisconnected();
+};
 
 class cNetworkManager : public QObject
 {
     Q_OBJECT
 public:
     static const int    UDP_PORT = 26855;
+    static const int    TCP_PORT = 26856;
 protected:
-    QUdpSocket*         m_Client;
     QUdpSocket*         m_Server;
+    cTcpSimpleServer    m_TcpServer;
+    QTcpSocket          m_TcpClient;
 public:
     explicit cNetworkManager(QObject *parent = 0);
 
     QString getAddress();
 
 signals:
-    void dataReceived(QByteArray data);
+    void dataReceived(QByteArray& data, QHostAddress address);
 public slots:
-    void sendData(QByteArray data, QVector<QHostAddress>& addresses);
+    void sendData(QByteArray& data, QVector<QHostAddress>& addresses);
+    void sendDataOverTcp(QByteArray& data, QHostAddress& address);
 protected slots:
     void readyRead();
+    void onDataReady(QByteArray& data, QHostAddress address);
 };
 
 #endif // CNETWORKMANAGER_H

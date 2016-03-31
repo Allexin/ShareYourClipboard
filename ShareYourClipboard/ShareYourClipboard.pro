@@ -19,13 +19,15 @@ SOURCES += main.cpp \
     data/cclipboardmanager.cpp \
     ui/ctrayicon.cpp \
     ui/settingswindow.cpp \
-    data/cnetworkmanager.cpp
+    data/cnetworkmanager.cpp \
+    data/cfileloader.cpp
 
 HEADERS  += \
     data/cclipboardmanager.h \
     ui/ctrayicon.h \
     ui/settingswindow.h \
-    data/cnetworkmanager.h
+    data/cnetworkmanager.h \
+    data/cfileloader.h
 
 FORMS    += \
     ui/settingswindow.ui
