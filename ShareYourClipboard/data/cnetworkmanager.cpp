@@ -53,7 +53,7 @@ void cNetworkManager::sendDataOverTcp(QByteArray &data, QHostAddress &address)
 
 void cNetworkManager::readyRead()
 {
-    qDebug() << "received";
+    qDebug() << "udp received";
     while (m_Server->hasPendingDatagrams()){
         QByteArray buffer;
         buffer.resize(m_Server->pendingDatagramSize());
@@ -74,7 +74,7 @@ void cNetworkManager::onDataReady(QByteArray &data,QHostAddress address)
 
 cTcpSimpleServer::cTcpSimpleServer(int port)
 {
-    if (!listen(QHostAddress::Any,port)){
+    if (!listen(QHostAddress::AnyIPv4,port)){
             qCritical() << "cTcpSimpleServer start error: " << errorString();
         }
 }
@@ -90,6 +90,7 @@ void cTcpSimpleServer::incomingConnection(qintptr handle)
 
 void cTcpSimpleServer::onReadyRead()
 {
+    qDebug() << "tcp received";
     QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
 
     QByteArray data = socket->readAll();
