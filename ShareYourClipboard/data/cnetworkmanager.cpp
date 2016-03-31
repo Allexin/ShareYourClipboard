@@ -39,7 +39,7 @@ void cNetworkManager::sendData(QByteArray &data, QVector<QHostAddress>& addresse
 {
     for (int i = 0; i< addresses.size(); ++i){
         m_Server->writeDatagram(data,data.size(),addresses[i],UDP_PORT);
-        qDebug() << "sended to address: " << addresses[i].toString();
+        qDebug() << "udp sended to address: " << addresses[i].toString();
     }
 
 }
@@ -49,6 +49,7 @@ void cNetworkManager::sendDataOverTcp(QByteArray &data, QHostAddress &address)
     m_TcpClient.connectToHost(address, TCP_PORT);
     m_TcpClient.waitForConnected();
     m_TcpClient.write(data);
+    qDebug() << "tcp sended to address: " << address.toString();
 }
 
 void cNetworkManager::readyRead()
