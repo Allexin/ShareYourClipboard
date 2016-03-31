@@ -177,6 +177,7 @@ void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress a
         return;
     }
 
+    qDebug() << data;
     //TODO - process success packages
 }
 
