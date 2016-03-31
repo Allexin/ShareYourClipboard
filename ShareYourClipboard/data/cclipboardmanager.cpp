@@ -199,7 +199,11 @@ void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHos
     for (int i = 0; i<items.size(); i++){
         QString str = items[i].trimmed();
         if (str.mid(0,8)=="file:///"){
+#ifdef Q_OS_WIN
             files.append(str.mid(8));
+#else
+            files.append(str.mid(7));
+#endif
         }
     }
 
@@ -407,7 +411,7 @@ void cClipboardManager::sendClipboardText(QString text)
     m_LastClipboard = text;
     qDebug() << "clipboard sended: " << m_LastClipboard;
     sendNetworkData(data,NULL);
-    emit onStateChanged(SENDED);
+    setState(SENDED);
 }
 
 void cClipboardManager::receivedNetworkPackage(QByteArray& package, QHostAddress address)

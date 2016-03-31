@@ -192,6 +192,6 @@ sFileLoaderFileInfo::sFileLoaderFileInfo(sFileLoaderClipboard *parent, QFileInfo
         QDir dir(FileInfo.absoluteFilePath());
         QFileInfoList files = dir.entryInfoList(QDir::AllDirs | QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot | QDir::Readable);
         for (int i = 0; i<files.size(); ++i)
-            chields[files[i].absoluteFilePath()] = new sFileLoaderFileInfo(parent,files[i]);
+            chields[files[i].fileName()] = new sFileLoaderFileInfo(parent,files[i]);
     }
 }
