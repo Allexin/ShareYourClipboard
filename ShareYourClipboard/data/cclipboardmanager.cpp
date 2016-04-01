@@ -392,7 +392,7 @@ void cClipboardManager::receivedNetworkFilesGetFileHandle(QByteArray &data, QHos
 {
     cReadStream stream(data);
     stream.skip(sizeof(int));//skip request
-    int command = stream.read<int>();\
+    int command = stream.read<int>();
 
     StringUuid clipboardUuid = stream.readUtf8();
     QString relativeFileName = stream.readUtf8();
