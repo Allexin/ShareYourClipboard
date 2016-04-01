@@ -84,7 +84,7 @@ public:
 
     template<typename T>
     void write(T value) {
-        static_assert(std::is_same<T, char>::value || std::is_same<T, int>::value,
+        static_assert(std::is_same<T, char>::value || std::is_same<T, int>::value || std::is_same<T, int64_t>::value,
                         "only simple types allowed");
         writeRaw(&value, sizeof(T));
     }
@@ -347,7 +347,7 @@ void cClipboardManager::receivedNetworkFilesGetFilePart(QByteArray &data, QHostA
 
 void writeItemToStream(cWriteStream& stream, sFileLoaderFileInfo* file, const QString& path){
     stream.writeUtf8(path+file->fileName);
-    stream.write<int>(file->fileSize);
+    stream.write<int64_t>(file->fileSize);
     stream.write<int>(file->isDir?1:0);
     stream.write<int>(file->isExecutable?1:0);
     if (file->isDir){
@@ -370,7 +370,7 @@ void cClipboardManager::sendNetworkResponseFilesGetListHandle(QHostAddress addre
     stream.write<int>(NETWORK_ERROR_NO);
 
     stream.writeUtf8(clipboard->handle);
-    stream.write<int>(clipboard->totalSize);
+    stream.write<int64_t>(clipboard->totalSize);
     stream.write<int>(clipboard->rootFiles.count());
     foreach(auto item, clipboard->rootFiles){
         writeItemToStream(stream,item,"");
