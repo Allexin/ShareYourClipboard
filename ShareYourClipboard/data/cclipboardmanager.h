@@ -25,6 +25,7 @@
 #include "cnetworkmanager.h"
 #include "cfileloader.h"
 #include "cfilesaver.h"
+#include "../UGlobalHotkey-master/uglobalhotkeys.h"
 
 class cClipboardManager : public QObject
 {
@@ -62,6 +63,12 @@ public:
     void closeFile(StringUuid listUuid, StringUuid fileUuid, QHostAddress address);
     bool openFile(StringUuid listUuid, QString relativeFilePath, QHostAddress address);
     bool getFilePart(StringUuid listUuid, StringUuid fileUuid, int start, int size, QHostAddress address);
+    void setProgressMain(QString text, int value, int max){
+        emit onSetProgressMain(text, value, max);
+    }
+    void setProgressSecond(QString text, int value, int max){
+        emit onSetProgressSecond(text, value, max);
+    }
 protected:
     cFileLoader         m_FileLoader;
     void receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address);
@@ -74,6 +81,10 @@ protected:
     void sendNetworkResponseFilesGetFilePart(QHostAddress address, StringUuid& clipboardUuid, sFileLoaderFileInfo* fileInfo, const char* fileData, int start, int size);
 
     void receivedNetworkRequest(QByteArray &data, QHostAddress address);
+protected:
+    UGlobalHotkeys      m_HotKeysManager;
+
+    int                 m_PasteFilesHotkey;
 protected:
     QVector<QHostAddress> m_Addresses;
     cNetworkManager     m_NetworkManager;
@@ -101,14 +112,19 @@ signals:
     void onStartCopyProcess(QString operationName);
     void onStopCopyProcess();
     void showMessage(QString message);
+
+    void onSetProgressMain(QString text, int value, int max);
+    void onSetProgressSecond(QString text, int value, int max);
 protected slots:
     void onClipboardReceived(QClipboard::Mode mode);
     void onNetworkDataReceived(QByteArray& data, QHostAddress address);
     void onDownloadingStop();
+    void onHotKeys(size_t id);
 public slots:
     void onPreferencesChanged();
     void switchState();
     void pasteFiles();
+    void cancelDownloading();
 };
 
 #endif // CCLIPBOARDMANAGER_H

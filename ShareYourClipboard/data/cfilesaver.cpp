@@ -50,6 +50,7 @@ void cFileSaverList::clear()
 
 void cFileSaverList::startDownloading(QString localPath, QHostAddress host)
 {
+    m_TotalFilesCount = m_Files.size();
     m_HostAddress = host;
     localPath = localPath.replace("\\","/");
     while (localPath.indexOf("//")>-1)
@@ -113,8 +114,11 @@ void cFileSaverList::fileOpenResult(int resultCode, StringUuid fileUuid, int fil
     }
 
     if (id==-1){
-        qCritical() << "unknown file received "<< relativeFileName;
-        return;
+        if (m_Files.size()==0){
+            qCritical() << "unknown file received "<< fileUuid;
+            return;
+        }
+        id = 0;
     }
 
     if (resultCode!=0){
@@ -124,7 +128,7 @@ void cFileSaverList::fileOpenResult(int resultCode, StringUuid fileUuid, int fil
             return;
         }
 
-        QMessageBox::StandardButton answer = QMessageBox::critical(0,"remote file access failed",tr("can't access remote file %1\nSkip?").arg(relativeFileName),QMessageBox::YesAll | QMessageBox::Yes | QMessageBox::Retry | QMessageBox::Abort);
+        QMessageBox::StandardButton answer = QMessageBox::critical(0,"remote file access failed",tr("can't access remote file %1\nSkip?").arg(m_Files[0]->m_RelativeFileName),QMessageBox::YesAll | QMessageBox::Yes | QMessageBox::Retry | QMessageBox::Abort);
         if (answer==QMessageBox::Abort){
             m_Parent->stopDownloading();
             return;
@@ -164,7 +168,7 @@ void cFileSaverList::fileOpenResult(int resultCode, StringUuid fileUuid, int fil
         for (int i = 0; i<file->m_FileParts.size(); ++i){
             file->m_FileParts[i].data.clear();;
             file->m_FileParts[i].dataReceived = false;
-            file->m_FileParts[0].startPos = start;
+            file->m_FileParts[i].startPos = start;
             int partSize;
             if (start+MAX_FILE_PART_SIZE<fileSize){
                 partSize = MAX_FILE_PART_SIZE;
@@ -172,7 +176,7 @@ void cFileSaverList::fileOpenResult(int resultCode, StringUuid fileUuid, int fil
             else{
                 partSize = fileSize-start;
             }
-            file->m_FileParts[0].size = partSize;
+            file->m_FileParts[i].size = partSize;
             start+=partSize;
         }
     }
@@ -190,8 +194,11 @@ void cFileSaverList::fileGetPart(int resultCode, StringUuid fileUuid, int start,
     }
 
     if (id==-1){
-        qCritical() << "unknown file received "<< fileUuid;
-        return;
+        if (m_Files.size()==0){
+            qCritical() << "unknown file received "<< fileUuid;
+            return;
+        }
+        id = 0;
     }
 
     int part = -1;
@@ -349,6 +356,15 @@ void cFileSaverList::fileGetPart(int resultCode, StringUuid fileUuid, int start,
     processNextFilePart();
 }
 
+QString IntToSize(int size){
+    if (size<1024)
+        return QString::number(size)+" bytes";
+    if (size<1024*1024)
+        return QString::number(size/1024.f,'f',1)+" Kb";
+    if (size<1024*1024*1024)
+        return QString::number(size/1024.f/1024.f,'f',1)+" Mb";
+    return QString::number(size/1024.f/1024.f/1024.f,'f',1)+" Gb";
+}
 
 void cFileSaverList::processNextFilePart()
 {
@@ -359,6 +375,8 @@ void cFileSaverList::processNextFilePart()
 
     cFileSaverFile* file = m_Files[0];
     if (file->m_Handle.isEmpty()){
+        m_Parent->parent()->setProgressMain(file->m_RelativeFileName+"("+QString::number(m_TotalFilesCount-m_Files.size())+"/"+QString::number(m_TotalFilesCount) +")",m_TotalFilesCount-m_Files.size(),m_TotalFilesCount);
+        m_Parent->parent()->setProgressSecond("",0,0);
         if (!m_Parent->parent()->openFile(m_Handle,file->m_RelativeFileName,m_HostAddress)){
             QMessageBox::StandardButton answer = QMessageBox::critical(0,"remote access failed",tr("can't open remote file %1").arg(file->m_RelativeFileName),QMessageBox::Retry | QMessageBox::Ignore | QMessageBox::Abort);
             if (answer==QMessageBox::Retry){
@@ -383,6 +401,7 @@ void cFileSaverList::processNextFilePart()
 
     for (int i = 0; i<file->m_FileParts.size(); ++i ){
         if (!file->m_FileParts[i].dataReceived){
+            m_Parent->parent()->setProgressSecond(IntToSize(file->m_FileParts[i].startPos)+"/"+IntToSize(file->m_Size),file->m_FileParts[i].startPos,file->m_Size);
             m_Parent->parent()->getFilePart(m_Handle,file->m_Handle,file->m_FileParts[i].startPos,file->m_FileParts[i].size,m_HostAddress);
             return;
         }

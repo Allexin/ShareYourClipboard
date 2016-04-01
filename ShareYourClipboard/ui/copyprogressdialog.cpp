@@ -7,11 +7,17 @@ CopyProgressDialog::CopyProgressDialog(QWidget *parent) :
     ui(new Ui::CopyProgressDialog)
 {
     ui->setupUi(this);
+    connect(ui->pushButtonCancel,SIGNAL(released()),this, SLOT(onCancelPress()));
 }
 
 CopyProgressDialog::~CopyProgressDialog()
 {
     delete ui;
+}
+
+void CopyProgressDialog::onCancelPress()
+{
+    emit cancel();
 }
 
 void CopyProgressDialog::start(QString mainOperationName)
@@ -31,7 +37,27 @@ void CopyProgressDialog::start(QString mainOperationName)
 
 void CopyProgressDialog::showMessage(QString message)
 {
-    QMessageBox::information(this,"",message);
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("");
+    msgBox.setText(message);
+    msgBox.showNormal();
+    msgBox.raise();
+    msgBox.activateWindow();
+    msgBox.exec();
+}
+
+void CopyProgressDialog::setProgressMain(QString text, int value, int max)
+{
+    ui->progressBarMain->setMaximum(max);
+    ui->progressBarMain->setValue(value);
+    ui->labelMain->setText(text);
+}
+
+void CopyProgressDialog::setProgressSecond(QString text, int value, int max)
+{
+    ui->progressBarSecond->setMaximum(max);
+    ui->progressBarSecond->setValue(value);
+    ui->labelSecond->setText(text);
 }
 
 void CopyProgressDialog::stop()

@@ -17,10 +17,16 @@ public:
 
 private:
     Ui::CopyProgressDialog *ui;
+protected slots:
+    void onCancelPress();
+signals:
+    void cancel();
 public slots:
     void start(QString mainOperationName);
     void stop();
     void showMessage(QString message);
+    void setProgressMain(QString text, int value, int max);
+    void setProgressSecond(QString text, int value, int max);
 };
 
 #endif // COPYPROGRESSDIALOG_H

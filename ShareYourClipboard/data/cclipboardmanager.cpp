@@ -189,6 +189,13 @@ void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress a
             emit onStopCopyProcess();
             emit showMessage(tr("No files founded in remote clipboard"));
             break;
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE:
+            m_FileSaver.getList()->fileOpenResult(result,"",0,false,"");
+            break;
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART:
+            QByteArray dummy;
+            m_FileSaver.getList()->fileGetPart(result,"",0,0,dummy);
+            break;
         }
         return;
     };
@@ -700,6 +707,12 @@ cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0),m_FileS
 
     connect(&m_FileSaver,SIGNAL(onStop()), this, SLOT(onDownloadingStop()));
 
+    connect(&m_HotKeysManager,SIGNAL(activated(size_t)),this,SLOT(onHotKeys(size_t)));
+
+    m_PasteFilesHotkey=1;
+    m_HotKeysManager.registerHotkey("Ctrl+Alt+V",m_PasteFilesHotkey);
+
+
     loadPreferences();
 }
 
@@ -743,6 +756,13 @@ void cClipboardManager::onDownloadingStop()
     emit onStopCopyProcess();
 }
 
+void cClipboardManager::onHotKeys(size_t id)
+{
+    if (id==m_PasteFilesHotkey){
+        pasteFiles();
+    }
+}
+
 void cClipboardManager::onPreferencesChanged()
 {
     loadPreferences();
@@ -766,5 +786,10 @@ void cClipboardManager::pasteFiles()
         sendNetworkRequestFilesGetListHandle(m_SenderAddress);
     else
         emit showMessage(tr("Nothing to paste: no remote files available"));
+}
+
+void cClipboardManager::cancelDownloading()
+{
+    m_FileSaver.stopDownloading();
 }
 

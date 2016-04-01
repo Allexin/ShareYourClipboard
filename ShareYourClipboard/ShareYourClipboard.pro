@@ -14,6 +14,11 @@ TEMPLATE = app
 CONFIG+=address_sanitizer
 CONFIG+=C++11
 
+linux: LIBS += -lxcb -lxcb-keysyms
+mac: LIBS += -framework Carbon
+win32: LIBS += -luser32
+
+
 
 SOURCES += main.cpp \
     data/cclipboardmanager.cpp \
@@ -22,7 +27,10 @@ SOURCES += main.cpp \
     data/cnetworkmanager.cpp \
     data/cfileloader.cpp \
     data/cfilesaver.cpp \
-    ui/copyprogressdialog.cpp
+    ui/copyprogressdialog.cpp \
+    UGlobalHotkey-master/uexception.cpp \
+    UGlobalHotkey-master/uglobalhotkeys.cpp \
+    UGlobalHotkey-master/ukeysequence.cpp
 
 HEADERS  += \
     data/cclipboardmanager.h \
@@ -32,7 +40,12 @@ HEADERS  += \
     data/cfileloader.h \
     data/cfilesaver.h \
     ui/copyprogressdialog.h \
-    data/utils.h
+    data/utils.h \
+    UGlobalHotkey-master/hotkeymap.h \
+    UGlobalHotkey-master/uexception.h \
+    UGlobalHotkey-master/uglobal.h \
+    UGlobalHotkey-master/uglobalhotkeys.h \
+    UGlobalHotkey-master/ukeysequence.h
 
 FORMS    += \
     ui/settingswindow.ui \

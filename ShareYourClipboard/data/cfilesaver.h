@@ -41,6 +41,7 @@ class cFileSaverList: public QObject{
     Q_OBJECT
 protected:
     StringUuid          m_Handle;
+    int                 m_TotalFilesCount;
     QVector<cFileSaverFile*> m_Files;
     QVector<QString>    m_Dirs;
     int                 m_TotalSize;

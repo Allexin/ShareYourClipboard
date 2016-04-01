@@ -52,6 +52,9 @@ int main(int argc, char *argv[])
     QObject::connect(&manager, SIGNAL(onStartCopyProcess(QString)), &copydialog, SLOT(start(QString)));
     QObject::connect(&manager, SIGNAL(onStopCopyProcess()), &copydialog, SLOT(stop()));
     QObject::connect(&manager, SIGNAL(showMessage(QString)), &copydialog, SLOT(showMessage(QString)));
+    QObject::connect(&manager, SIGNAL(onSetProgressMain(QString,int,int)), &copydialog, SLOT(setProgressMain(QString,int,int)));
+    QObject::connect(&manager, SIGNAL(onSetProgressSecond(QString,int,int)), &copydialog, SLOT(setProgressSecond(QString,int,int)));
+    QObject::connect(&copydialog, SIGNAL(cancel()), &manager, SLOT(cancelDownloading()));
 
     qDebug() << "start app loop\n";
     int result = a.exec();
