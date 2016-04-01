@@ -43,7 +43,7 @@ public:
     static const int NETWORK_ERROR_NO= 0;
     static const int NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES = 1;
     static const int NETWORK_ERROR_CANT_OPEN_REMOTE_FILE = 2;
-    static const int NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART = 3;
+    static const int NETWORK_ERROR_INCORRECTED_REQUESTED_FILE_PART_SIZE = 3;
     static const int NETWORK_ERROR_CANT_READ_REMOTE_FILE = 4;
 protected:    
     bool sendNetworkData(QByteArray& data, QHostAddress* address);

@@ -441,8 +441,8 @@ void cClipboardManager::receivedNetworkFilesGetFilePart(QByteArray &data, QHostA
 
     qDebug() << "receivedNetworkFilesGetFilePart " <<filePartStart;
 
-    if (filePartSize>MAX_FILE_PART_SIZE){
-        sendNetworkResponseFailure(command,NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART,address);
+    if (filePartSize<=0 || filePartSize>MAX_FILE_PART_SIZE){
+        sendNetworkResponseFailure(command,NETWORK_ERROR_INCORRECTED_REQUESTED_FILE_PART_SIZE,address);
         return;
     }
 
