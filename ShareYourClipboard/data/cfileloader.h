@@ -23,7 +23,7 @@ public:
     int fileOpenTimeOut; //0 - file is closed
     QFile file;
     QString fileName;
-    int fileSize;
+    int64_t fileSize;
     bool isDir;
     bool isExecutable;
     QMap<QString,sFileLoaderFileInfo*> chields;
@@ -47,7 +47,7 @@ protected:
 public:
     int                 clipboardOpenTimeOut; //0 - time to forget this clipboard
     StringUuid          handle;
-    int                 totalSize;
+    int64_t               totalSize;
     QMap<QString,sFileLoaderFileInfo*> rootFiles;
     QMap<StringUuid,sFileLoaderFileInfo*> allFiles;
 
