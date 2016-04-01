@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QDir>
 #include "utils.h"
+#include <stdint.h>
 
 
 class sFileLoaderClipboard;

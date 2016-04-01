@@ -20,6 +20,7 @@
 #include <memory>
 #include <QSettings>
 #include <QDebug>
+#include <QFileDialog>
 
 class cReadStream{
 protected:
@@ -47,7 +48,9 @@ public:
 
     template<typename T>
     T read() {
-        static_assert(std::is_same<T, char>::value || std::is_same<T, int>::value,
+        static_assert(std::is_same<T, char>::value
+                      || std::is_same<T, int>::value
+                      || std::is_same<T, int64_t>::value,
                         "only simple types allowed");
         T val = 0;
         readRaw(&val, sizeof(T));
@@ -84,7 +87,9 @@ public:
 
     template<typename T>
     void write(T value) {
-        static_assert(std::is_same<T, char>::value || std::is_same<T, int>::value || std::is_same<T, int64_t>::value,
+        static_assert(std::is_same<T, char>::value
+                      || std::is_same<T, int>::value
+                      || std::is_same<T, int64_t>::value,
                         "only simple types allowed");
         writeRaw(&value, sizeof(T));
     }
@@ -192,9 +197,58 @@ void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress a
         case NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE:
             processFilesList(data,address);
         break;
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE:
+            processFileHandle(data,address);
+        break;
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART:
+            processFilePart(data,address);
+        break;
     };
+}
 
-    //TODO - process success packages
+void cClipboardManager::closeFilesList(StringUuid listUuid, QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_CLOSE_LIST_HANDLE);
+    stream.writeUtf8(listUuid);
+    sendNetworkData(data,&address);
+}
+
+void cClipboardManager::closeFile(StringUuid listUuid, StringUuid fileUuid, QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_CLOSE_FILE_HANDLE);
+    stream.writeUtf8(listUuid);
+    stream.writeUtf8(fileUuid);
+    sendNetworkData(data,&address);
+}
+
+bool cClipboardManager::openFile(StringUuid listUuid, QString relativeFilePath, QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_HANDLE);
+    stream.writeUtf8(listUuid);
+    stream.writeUtf8(relativeFilePath);
+    return sendNetworkData(data,&address);
+}
+
+bool cClipboardManager::getFilePart(StringUuid listUuid, StringUuid fileUuid, int start, int size, QHostAddress address)
+{
+    QByteArray data;
+    cWriteStream stream(data);
+    stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
+    stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_FILE_PART);
+    stream.writeUtf8(listUuid);
+    stream.writeUtf8(fileUuid);
+    stream.write<int>(start);
+    stream.write<int>(size);
+    return sendNetworkData(data,&address);
 }
 
 void readItemFromStream(cReadStream& stream, cFileSaverList* list){
@@ -220,7 +274,7 @@ void cClipboardManager::processFilesList(QByteArray &data, QHostAddress &address
     stream.skip(sizeof(int));//skip @result@
 
     StringUuid listUuid = stream.readUtf8();
-    cFileSaverList* list = m_FileSaver.startFilesDownloading(listUuid, address);
+    cFileSaverList* list = m_FileSaver.initFilesDownloading(listUuid);
 
     if (!list)
         return;
@@ -229,6 +283,56 @@ void cClipboardManager::processFilesList(QByteArray &data, QHostAddress &address
     int rootFilesCount = stream.read<int>();
     for (int i = 0; i<rootFilesCount; ++i)
         readItemFromStream(stream, list);
+
+    if (list->filesCount()==1 && list->dirsCount()==0){
+        QFileInfo info(list->getFile(0)->getRelativeFileName());
+        QString fileName = QFileDialog::getSaveFileName(0,tr("Save remote file as"),info.fileName());
+        if (fileName.isEmpty()){
+            m_FileSaver.stopDownloading();
+            emit onStopCopyProcess();
+        }
+       list->startDownloading(fileName,address);
+    }
+    else{
+        QString dir = QFileDialog::getExistingDirectory(0, tr("Select folder to paste remote files"), QString(), QFileDialog::ShowDirsOnly | QFileDialog::DontConfirmOverwrite );
+        if (dir.isEmpty()){
+            m_FileSaver.stopDownloading();
+            emit onStopCopyProcess();
+        }
+        list->startDownloading(dir,address);
+    }
+}
+
+void cClipboardManager::processFileHandle(QByteArray &data, QHostAddress &address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip @response@
+    stream.skip(sizeof(int));//skip @command@
+    stream.skip(sizeof(int));//skip @result@
+
+    StringUuid listUuid = stream.readUtf8();
+    StringUuid fileUuid = stream.readUtf8();
+    StringUuid relativeFileName = stream.readUtf8();
+    bool isExecutable = stream.read<int>()!=0;
+    int fileSize = stream.read<int>();
+    m_FileSaver.getList()->fileOpenResult(0, fileUuid, fileSize, isExecutable, relativeFileName);
+}
+
+void cClipboardManager::processFilePart(QByteArray &data, QHostAddress &address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip @response@
+    stream.skip(sizeof(int));//skip @command@
+    stream.skip(sizeof(int));//skip @result@
+
+    StringUuid listUuid = stream.readUtf8();
+    StringUuid fileUuid = stream.readUtf8();
+    int start = stream.read<int>();
+    int size = stream.read<int>();
+    QByteArray filePart;
+    filePart.resize(size);
+    stream.readRaw(filePart.data(),size);
+    m_FileSaver.getList()->fileGetPart(0,fileUuid,start,size,filePart);
 }
 
 void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address)
@@ -572,7 +676,7 @@ void cClipboardManager::receivedNetworkClipboardText(QByteArray &data, QHostAddr
     stream.skip(sizeof(int)); //skip data type
     QString string = stream.readUtf8();
     qDebug() << "received clipboard: " << string;
-    if (string!=m_LastClipboard && m_CurrentState!=DISABLED){
+    if (string.compare(m_LastClipboard)!=0 && m_CurrentState!=DISABLED){
         m_LastClipboard = string;
         m_SenderAddress = address;
         setState(RECEIVED);        
@@ -586,12 +690,15 @@ void cClipboardManager::setState(cClipboardManager::eClipboardState newState)
     emit onStateChanged(m_CurrentState);
 }
 
-cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0)
+cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0),m_FileSaver(this)
 {
+    m_LastClipboard = "";
     connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray&,QHostAddress)), this, SLOT(onNetworkDataReceived(QByteArray&,QHostAddress)));
     m_Clipboard = clipboard;
     connect(clipboard, SIGNAL(changed(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
     m_CurrentState = ENABLED;
+
+    connect(&m_FileSaver,SIGNAL(onStop()), this, SLOT(onDownloadingStop()));
 
     loadPreferences();
 }
@@ -631,6 +738,11 @@ void cClipboardManager::onNetworkDataReceived(QByteArray &data, QHostAddress add
     receivedNetworkPackage(data,address);
 }
 
+void cClipboardManager::onDownloadingStop()
+{
+    emit onStopCopyProcess();
+}
+
 void cClipboardManager::onPreferencesChanged()
 {
     loadPreferences();
@@ -646,6 +758,10 @@ void cClipboardManager::switchState()
 
 void cClipboardManager::pasteFiles()
 {
+    if (m_FileSaver.isDownloading()){
+        emit showMessage(tr("Pasting already in progress"));
+        return;
+    }
     if (m_CurrentState==RECEIVED)
         sendNetworkRequestFilesGetListHandle(m_SenderAddress);
     else

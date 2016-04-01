@@ -51,9 +51,17 @@ protected:
 protected:
     cFileSaver          m_FileSaver;
     void sendNetworkRequestFilesGetListHandle(QHostAddress address);
-    void processFilesList(QByteArray& data,QHostAddress& address);
 
-     void receivedNetworkResponse(QByteArray &data, QHostAddress address);
+    void processFilesList(QByteArray& data,QHostAddress& address);
+    void processFileHandle(QByteArray& data,QHostAddress& address);
+    void processFilePart(QByteArray& data,QHostAddress& address);
+
+    void receivedNetworkResponse(QByteArray &data, QHostAddress address);
+public:
+    void closeFilesList(StringUuid listUuid, QHostAddress address);
+    void closeFile(StringUuid listUuid, StringUuid fileUuid, QHostAddress address);
+    bool openFile(StringUuid listUuid, QString relativeFilePath, QHostAddress address);
+    bool getFilePart(StringUuid listUuid, StringUuid fileUuid, int start, int size, QHostAddress address);
 protected:
     cFileLoader         m_FileLoader;
     void receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address);
@@ -96,6 +104,7 @@ signals:
 protected slots:
     void onClipboardReceived(QClipboard::Mode mode);
     void onNetworkDataReceived(QByteArray& data, QHostAddress address);
+    void onDownloadingStop();
 public slots:
     void onPreferencesChanged();
     void switchState();
