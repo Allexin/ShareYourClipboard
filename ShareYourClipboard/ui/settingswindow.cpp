@@ -26,8 +26,21 @@ void SettingsWindow::loadPreferences()
     QSettings settings;
 
     QString secretKey = settings.value(cClipboardManager::CONF_SECRET_KEY_ID,"").toString();
-
     ui->lineEditSecretKey->setText(secretKey);
+
+
+    int addrCount = settings.value(cClipboardManager::CONF_ADDRESSES_COUNT_ID,0).toInt();
+    if (addrCount==0){
+        ui->plainTextEditAddresses->setPlainText("255.255.255.255");
+    }
+    else{
+        QString addresses = "";
+        for (int i = 0; i<addrCount; ++i)
+            addresses+=(i!=0?"\n":"")+settings.value(cClipboardManager::CONF_ADDRESS_ID+QString::number(i),"").toString();
+        ui->plainTextEditAddresses->setPlainText(addresses);
+    }
+
+    ui->labelLocalAddress->setText(m_ClipboardManager->getAddress());
 }
 
 void SettingsWindow::applyPreferences()
@@ -35,6 +48,11 @@ void SettingsWindow::applyPreferences()
     QSettings settings;
 
     settings.setValue(cClipboardManager::CONF_SECRET_KEY_ID,ui->lineEditSecretKey->text());
+    QStringList addresses = ui->plainTextEditAddresses->toPlainText().split("\n");
+    settings.setValue(cClipboardManager::CONF_ADDRESSES_COUNT_ID,addresses.size());
+    for (int i = 0; i<addresses.size(); ++i){
+        settings.setValue(cClipboardManager::CONF_ADDRESS_ID+QString::number(i),addresses[i]);
+    }
     settings.sync();
 
     emit preferencesChange();

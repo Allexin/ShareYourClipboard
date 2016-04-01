@@ -21,6 +21,7 @@
 
 #include "ui/ctrayicon.h"
 #include "ui/settingswindow.h"
+#include "ui/copyprogressdialog.h"
 #include "data/cclipboardmanager.h"
 
 int main(int argc, char *argv[])
@@ -38,12 +39,22 @@ int main(int argc, char *argv[])
     qDebug() << "init tray icon\n";
     cTrayIcon trIcon(&manager);
     QObject::connect(&trIcon, SIGNAL(switchState()), &manager, SLOT(switchState()));
+    QObject::connect(&trIcon, SIGNAL(pasteFiles()), &manager, SLOT(pasteFiles()));
     QObject::connect(&manager, SIGNAL(onStateChanged(cClipboardManager::eClipboardState)), &trIcon, SLOT(setState(cClipboardManager::eClipboardState)));
 
     qDebug() << "init settings window\n";
     SettingsWindow settingsWindow(&manager);
     QObject::connect(&trIcon, SIGNAL(showSettings()), &settingsWindow, SLOT(showNormal()));
     QObject::connect(&settingsWindow, SIGNAL(preferencesChange()), &manager, SLOT(onPreferencesChanged()));
+
+    qDebug() << "init copy dialog\n";
+    CopyProgressDialog copydialog;
+    QObject::connect(&manager, SIGNAL(onStartCopyProcess(QString)), &copydialog, SLOT(start(QString)));
+    QObject::connect(&manager, SIGNAL(onStopCopyProcess()), &copydialog, SLOT(stop()));
+    QObject::connect(&manager, SIGNAL(showMessage(QString)), &copydialog, SLOT(showMessage(QString)));
+    QObject::connect(&manager, SIGNAL(onSetProgressMain(QString,int,int)), &copydialog, SLOT(setProgressMain(QString,int,int)));
+    QObject::connect(&manager, SIGNAL(onSetProgressSecond(QString,int,int)), &copydialog, SLOT(setProgressSecond(QString,int,int)));
+    QObject::connect(&copydialog, SIGNAL(cancel()), &manager, SLOT(cancelDownloading()));
 
     qDebug() << "start app loop\n";
     int result = a.exec();

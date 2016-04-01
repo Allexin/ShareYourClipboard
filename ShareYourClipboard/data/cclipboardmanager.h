@@ -23,30 +23,81 @@
 #include <QClipboard>
 #include <QMimeData>
 #include "cnetworkmanager.h"
+#include "cfileloader.h"
+#include "cfilesaver.h"
+#include "../UGlobalHotkey-master/uglobalhotkeys.h"
 
 class cClipboardManager : public QObject
 {
     Q_OBJECT
 public:
     static const QString CONF_SECRET_KEY_ID;
+    static const QString CONF_ADDRESSES_COUNT_ID;
+    static const QString CONF_ADDRESS_ID;
     enum eClipboardState{
         DISABLED,
         ENABLED,
         RECEIVED,
         SENDED
     };
+    static const int NETWORK_ERROR_NO= 0;
+    static const int NETWORK_ERROR_CLIPBOARD_HAVE_NOT_ANY_REMOTE_FILES = 1;
+    static const int NETWORK_ERROR_CANT_OPEN_REMOTE_FILE = 2;
+    static const int NETWORK_ERROR_INCORRECTED_REQUESTED_FILE_PART_SIZE = 3;
+    static const int NETWORK_ERROR_CANT_READ_REMOTE_FILE = 4;
+protected:    
+    bool sendNetworkData(QByteArray& data, QHostAddress* address);
+
+    void sendNetworkResponseFailure(int command, int failureCode, QHostAddress address);
 protected:
+    cFileSaver          m_FileSaver;
+    void sendNetworkRequestFilesGetListHandle(QHostAddress address);
+
+    void processFilesList(QByteArray& data,QHostAddress& address);
+    void processFileHandle(QByteArray& data,QHostAddress& address);
+    void processFilePart(QByteArray& data,QHostAddress& address);
+
+    void receivedNetworkResponse(QByteArray &data, QHostAddress address);
+public:
+    void closeFilesList(StringUuid listUuid, QHostAddress address);
+    void closeFile(StringUuid listUuid, StringUuid fileUuid, QHostAddress address);
+    bool openFile(StringUuid listUuid, QString relativeFilePath, QHostAddress address);
+    bool getFilePart(StringUuid listUuid, StringUuid fileUuid, int start, int size, QHostAddress address);
+    void setProgressMain(QString text, int value, int max){
+        emit onSetProgressMain(text, value, max);
+    }
+    void setProgressSecond(QString text, int value, int max){
+        emit onSetProgressSecond(text, value, max);
+    }
+protected:
+    cFileLoader         m_FileLoader;
+    void receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address);
+    void receivedNetworkFilesCloseListHandle(QByteArray &data);
+    void receivedNetworkFilesGetFileHandle(QByteArray &data, QHostAddress address);
+    void receivedNetworkFilesCloseFileHandle(QByteArray &data);
+    void receivedNetworkFilesGetFilePart(QByteArray &data, QHostAddress address);
+    void sendNetworkResponseFilesGetListHandle(QHostAddress address, sFileLoaderClipboard* clipboard);
+    void sendNetworkResponseFilesGetFileHandle(QHostAddress address, StringUuid& clipboardUuid, sFileLoaderFileInfo* fileInfo, QString relativeFileName);
+    void sendNetworkResponseFilesGetFilePart(QHostAddress address, StringUuid& clipboardUuid, sFileLoaderFileInfo* fileInfo, const char* fileData, int start, int size);
+
+    void receivedNetworkRequest(QByteArray &data, QHostAddress address);
+protected:
+    UGlobalHotkeys      m_HotKeysManager;
+
+    int                 m_PasteFilesHotkey;
+protected:
+    QVector<QHostAddress> m_Addresses;
     cNetworkManager     m_NetworkManager;
     eClipboardState     m_CurrentState;
+    QHostAddress        m_SenderAddress;
     QByteArray          m_SecretKey;
     QString             m_LastClipboard;
     QClipboard*         m_Clipboard;
-    void loadPreferences();
-    void sendNetworkData(QByteArray& data);
+    void loadPreferences();    
     void sendClipboardText(QString text);
-    void receivedNetworkPackage(QByteArray &package);
-    void receivedNetworkData(QByteArray &data);
-    void receivedNetworkClipboardText(QByteArray &data);
+    void receivedNetworkPackage(QByteArray &package, QHostAddress address);
+    void receivedNetworkData(QByteArray &data, QHostAddress address);
+    void receivedNetworkClipboardText(QByteArray &data, QHostAddress address);
     void setState(cClipboardManager::eClipboardState newState);
 public:
 
@@ -54,14 +105,26 @@ public:
     explicit cClipboardManager(QClipboard* clipboard);
 
     QByteArray generateKey(int length);
+    QString getAddress();
 signals:
     void onStateChanged(cClipboardManager::eClipboardState newState);
+
+    void onStartCopyProcess(QString operationName);
+    void onStopCopyProcess();
+    void showMessage(QString message);
+
+    void onSetProgressMain(QString text, int value, int max);
+    void onSetProgressSecond(QString text, int value, int max);
 protected slots:
     void onClipboardReceived(QClipboard::Mode mode);
-    void onNetworkClipboardReceived(QByteArray data);
+    void onNetworkDataReceived(QByteArray& data, QHostAddress address);
+    void onDownloadingStop();
+    void onHotKeys(size_t id);
 public slots:
     void onPreferencesChanged();
     void switchState();
+    void pasteFiles();
+    void cancelDownloading();
 };
 
 #endif // CCLIPBOARDMANAGER_H

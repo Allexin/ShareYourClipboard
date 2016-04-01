@@ -38,6 +38,7 @@ public:
 signals:
     void showSettings();
     void switchState();
+    void pasteFiles();
 public slots:
     void onTray(QSystemTrayIcon::ActivationReason reason);
     void setState(cClipboardManager::eClipboardState state);
