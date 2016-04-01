@@ -171,6 +171,7 @@ bool sFileLoaderFileInfo::read(int start, int size, char* outData)
     if (start+size>file.size())
         return false;
 
+    fileOpenTimeOut = LIFE_TIME;
     file.seek(start);
     return (file.read(outData,size)==size);
 }
