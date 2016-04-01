@@ -24,6 +24,7 @@
 #include <QMimeData>
 #include "cnetworkmanager.h"
 #include "cfileloader.h"
+#include "cfilesaver.h"
 
 class cClipboardManager : public QObject
 {
@@ -43,13 +44,14 @@ public:
     static const int NETWORK_ERROR_CANT_OPEN_REMOTE_FILE = 2;
     static const int NETWORK_ERROR_TOO_BIG_REQUESTED_FILE_PART = 3;
     static const int NETWORK_ERROR_CANT_READ_REMOTE_FILE = 4;
-protected:
-    static const int MAX_FILE_PART_SIZE = 65536;
-    void sendNetworkData(QByteArray& data, QHostAddress* address);
+protected:    
+    bool sendNetworkData(QByteArray& data, QHostAddress* address);
 
     void sendNetworkResponseFailure(int command, int failureCode, QHostAddress address);
 protected:
+    cFileSaver          m_FileSaver;
     void sendNetworkRequestFilesGetListHandle(QHostAddress address);
+    void processFilesList(QByteArray& data,QHostAddress& address);
 
      void receivedNetworkResponse(QByteArray &data, QHostAddress address);
 protected:
@@ -87,6 +89,10 @@ public:
     QString getAddress();
 signals:
     void onStateChanged(cClipboardManager::eClipboardState newState);
+
+    void onStartCopyProcess(QString operationName);
+    void onStopCopyProcess();
+    void showMessage(QString message);
 protected slots:
     void onClipboardReceived(QClipboard::Mode mode);
     void onNetworkDataReceived(QByteArray& data, QHostAddress address);

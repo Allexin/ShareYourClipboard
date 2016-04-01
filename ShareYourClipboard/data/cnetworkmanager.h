@@ -61,7 +61,7 @@ signals:
     void dataReceived(QByteArray& data, QHostAddress address);
 public slots:
     void sendData(QByteArray& data, QVector<QHostAddress>& addresses);
-    void sendDataOverTcp(QByteArray& data, QHostAddress& address);
+    bool sendDataOverTcp(QByteArray& data, QHostAddress& address);
 protected slots:
     void readyRead();
     void onDataReady(QByteArray& data, QHostAddress address);

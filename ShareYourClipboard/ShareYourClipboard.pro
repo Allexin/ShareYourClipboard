@@ -20,14 +20,20 @@ SOURCES += main.cpp \
     ui/ctrayicon.cpp \
     ui/settingswindow.cpp \
     data/cnetworkmanager.cpp \
-    data/cfileloader.cpp
+    data/cfileloader.cpp \
+    data/cfilesaver.cpp \
+    ui/copyprogressdialog.cpp
 
 HEADERS  += \
     data/cclipboardmanager.h \
     ui/ctrayicon.h \
     ui/settingswindow.h \
     data/cnetworkmanager.h \
-    data/cfileloader.h
+    data/cfileloader.h \
+    data/cfilesaver.h \
+    ui/copyprogressdialog.h \
+    data/utils.h
 
 FORMS    += \
-    ui/settingswindow.ui
+    ui/settingswindow.ui \
+    ui/copyprogressdialog.ui

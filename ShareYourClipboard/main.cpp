@@ -21,6 +21,7 @@
 
 #include "ui/ctrayicon.h"
 #include "ui/settingswindow.h"
+#include "ui/copyprogressdialog.h"
 #include "data/cclipboardmanager.h"
 
 int main(int argc, char *argv[])
@@ -45,6 +46,12 @@ int main(int argc, char *argv[])
     SettingsWindow settingsWindow(&manager);
     QObject::connect(&trIcon, SIGNAL(showSettings()), &settingsWindow, SLOT(showNormal()));
     QObject::connect(&settingsWindow, SIGNAL(preferencesChange()), &manager, SLOT(onPreferencesChanged()));
+
+    qDebug() << "init copy dialog\n";
+    CopyProgressDialog copydialog;
+    QObject::connect(&manager, SIGNAL(onStartCopyProcess(QString)), &copydialog, SLOT(start(QString)));
+    QObject::connect(&manager, SIGNAL(onStopCopyProcess()), &copydialog, SLOT(stop()));
+    QObject::connect(&manager, SIGNAL(showMessage(QString)), &copydialog, SLOT(showMessage(QString)));
 
     qDebug() << "start app loop\n";
     int result = a.exec();

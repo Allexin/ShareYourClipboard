@@ -43,13 +43,24 @@ void cNetworkManager::sendData(QByteArray &data, QVector<QHostAddress>& addresse
     }
 }
 
-void cNetworkManager::sendDataOverTcp(QByteArray &data, QHostAddress &address)
+bool cNetworkManager::sendDataOverTcp(QByteArray &data, QHostAddress &address)
 {
     m_TcpClient.connectToHost(address, TCP_PORT);
-    m_TcpClient.waitForConnected();
-    m_TcpClient.write(data);
-    m_TcpClient.disconnectFromHost();
-    qDebug() << "tcp sended to address: " << address.toString();
+    int sended = -1;
+    if (m_TcpClient.waitForConnected()){
+        sended = m_TcpClient.write(data);
+        m_TcpClient.disconnectFromHost();
+        if (sended>-1)
+            qDebug() << "tcp sended to address: " << address.toString();
+        else{
+            qDebug() << "tcp error. can't send data to address: " << address.toString();
+        }
+    }
+    else{
+        qDebug() << "tcp error. can't connect to address: " << address.toString();
+    }
+
+    return sended>-1;
 }
 
 void cNetworkManager::readyRead()

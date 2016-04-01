@@ -9,10 +9,10 @@
 #include <QByteArray>
 #include <QTimer>
 #include <QDir>
+#include "utils.h"
+
 
 class sFileLoaderClipboard;
-
-typedef QString StringUuid;
 
 class sFileLoaderFileInfo: public QObject{
     Q_OBJECT

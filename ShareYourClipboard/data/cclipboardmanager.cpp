@@ -162,8 +162,12 @@ void cClipboardManager::sendNetworkRequestFilesGetListHandle(QHostAddress addres
     cWriteStream stream(data);
     stream.write<int>(NETWORK_DATA_TYPE_REQUEST);
     stream.write<int>(NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE);
-    sendNetworkData(data,&address);
-    qDebug() << " try get files from " << address.toString();
+    if (sendNetworkData(data,&address)){
+        emit onStartCopyProcess("Receiving files list");
+    }
+    else{
+        emit showMessage(tr("Can't access remote clipboard. Check firewall and remote app availability."));
+    }
 }
 
 void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress address)
@@ -174,11 +178,57 @@ void cClipboardManager::receivedNetworkResponse(QByteArray &data, QHostAddress a
     int result = stream.read<int>();
     if (result!=0){
         qDebug() << "response for command " << command << " is error " << result;
-        return;
-    }
 
-    qDebug() << data;
+        switch (command) {
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE:
+            emit onStopCopyProcess();
+            emit showMessage(tr("No files founded in remote clipboard"));
+            break;
+        }
+        return;
+    };
+
+    switch (command){
+        case NETWORK_DATA_CLIPBOARD_FILES_GET_LIST_HANDLE:
+            processFilesList(data,address);
+        break;
+    };
+
     //TODO - process success packages
+}
+
+void readItemFromStream(cReadStream& stream, cFileSaverList* list){
+    QString relativePath = stream.readUtf8();
+    int size = stream.read<int64_t>();
+    bool isDir = stream.read<int>()!=0;
+    bool isExecutable = stream.read<int>()!=0;
+    int childsCount = stream.read<int>();
+    if (isDir){
+        list->addDir(relativePath);
+        for (int i = 0; i<childsCount; ++i)
+            readItemFromStream(stream,list);
+    }
+    else
+        list->addFile(size,relativePath,isExecutable);
+}
+
+void cClipboardManager::processFilesList(QByteArray &data, QHostAddress &address)
+{
+    cReadStream stream(data);
+    stream.skip(sizeof(int));//skip @response@
+    stream.skip(sizeof(int));//skip @command@
+    stream.skip(sizeof(int));//skip @result@
+
+    StringUuid listUuid = stream.readUtf8();
+    cFileSaverList* list = m_FileSaver.startFilesDownloading(listUuid, address);
+
+    if (!list)
+        return;
+
+    stream.skip(sizeof(int64_t));//skip @totalSize@
+    int rootFilesCount = stream.read<int>();
+    for (int i = 0; i<rootFilesCount; ++i)
+        readItemFromStream(stream, list);
 }
 
 void cClipboardManager::receivedNetworkFilesGetListHandle(QByteArray &data, QHostAddress address)
@@ -362,7 +412,7 @@ void cClipboardManager::sendNetworkResponseFilesGetFilePart(QHostAddress address
     sendNetworkData(data,&address);
 }
 
-void cClipboardManager::sendNetworkData(QByteArray& data, QHostAddress* address)
+bool cClipboardManager::sendNetworkData(QByteArray& data, QHostAddress* address)
 {
     cWriteStream checkSumStream(data);
     checkSumStream.write<int>(getSimpleCheckSum(data));
@@ -396,9 +446,11 @@ void cClipboardManager::sendNetworkData(QByteArray& data, QHostAddress* address)
                 keyPos = 0;
         }
     if (address)
-        m_NetworkManager.sendDataOverTcp(package,*address);
-    else
+        return m_NetworkManager.sendDataOverTcp(package,*address);
+    else{
         m_NetworkManager.sendData(package,m_Addresses);
+        return true;
+    }
 }
 
 void cClipboardManager::sendClipboardText(QString text)
@@ -596,5 +648,7 @@ void cClipboardManager::pasteFiles()
 {
     if (m_CurrentState==RECEIVED)
         sendNetworkRequestFilesGetListHandle(m_SenderAddress);
+    else
+        emit showMessage(tr("Nothing to paste: no remote files available"));
 }
 
