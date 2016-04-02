@@ -18,7 +18,7 @@ class sFileLoaderClipboard;
 class sFileLoaderFileInfo: public QObject{
     Q_OBJECT
 protected:
-    const int LIFE_TIME = 60;//at least 1 minute
+    const int LIFE_TIME = 120;//at least 2 minute
 public:
     StringUuid handle;
     int fileOpenTimeOut; //0 - file is closed

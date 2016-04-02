@@ -99,7 +99,8 @@ void cFileLoader::closeClipboard(StringUuid clipboardUuid)
 void cFileLoader::collectGarbage()
 {
     for (auto it = m_Clipboards.begin(); it != m_Clipboards.end();){
-        if (it.value()->clipboardOpenTimeOut-=GARBAGE_COLLECTOR_PERIOD <= 0){
+        it.value()->clipboardOpenTimeOut-=GARBAGE_COLLECTOR_PERIOD;
+        if ( it.value()->clipboardOpenTimeOut<= 0){
             delete it.value();
             it = m_Clipboards.erase(it);
         }
