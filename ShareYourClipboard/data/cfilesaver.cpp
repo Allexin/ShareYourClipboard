@@ -179,6 +179,8 @@ void cFileSaverList::fileOpenResult(int resultCode, StringUuid fileUuid, int fil
             file->m_FileParts[i].size = partSize;
             start+=partSize;
         }
+        if (file->m_FileParts[file->m_FileParts.size()-1].size==0)
+            file->m_FileParts.pop_back();
     }
     processNextFilePart();
 }
