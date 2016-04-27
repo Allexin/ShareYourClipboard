@@ -18,7 +18,7 @@ class sFileLoaderClipboard;
 class sFileLoaderFileInfo: public QObject{
     Q_OBJECT
 protected:
-    const int LIFE_TIME = 60;//at least 1 minute
+    static const int LIFE_TIME = 60;//at least 1 minute
 public:
     StringUuid handle;
     int fileOpenTimeOut; //0 - file is closed
@@ -44,7 +44,7 @@ public:
 class sFileLoaderClipboard: public QObject{
     Q_OBJECT
 protected:
-    const int LIFE_TIME = 2880;//2 days
+    static const int LIFE_TIME = 2880;//2 days
 public:
     int                 clipboardOpenTimeOut; //0 - time to forget this clipboard
     StringUuid          handle;
@@ -64,7 +64,7 @@ class cFileLoader : public QObject
 {
     Q_OBJECT
 protected:
-    const int GARBAGE_COLLECTOR_PERIOD = 60;//every minute
+    static const int GARBAGE_COLLECTOR_PERIOD = 60;//every minute
 protected:
     QMap<StringUuid,sFileLoaderClipboard*> m_Clipboards;
     QTimer              m_Timer;
