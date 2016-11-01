@@ -22,10 +22,58 @@
 #include <QObject>
 #include <QClipboard>
 #include <QMimeData>
+#include <QList>
+#include <QUrl>
 #include "cnetworkmanager.h"
 #include "cfileloader.h"
 #include "cfilesaver.h"
 #include "../UGlobalHotkey-master/uglobalhotkeys.h"
+
+class cMacClipboardMonitor: public QObject{
+    Q_OBJECT
+protected:
+    QClipboard*             m_Clipboard;
+    QString                 m_LastClipboardValue;
+    QTimer                  m_Timer;
+
+    QString getCurrentClipboardValue(){
+        const QMimeData *mimeData = m_Clipboard->mimeData();
+        if (mimeData->hasText()) {
+            QString clipboard;
+
+            QList<QUrl> urls = mimeData->urls();
+            if (urls.size()>0){
+                clipboard = urls[0].toString();
+                for (int i = 1; i<urls.size(); i++)
+                    clipboard += "\n" +urls[i].toString();
+            }
+            else{
+                clipboard = mimeData->text();
+            }
+            return clipboard;
+        }
+        return "";
+    }
+
+public:
+    explicit cMacClipboardMonitor(QClipboard* clipboard){
+        m_Clipboard = clipboard;
+        connect(&m_Timer,SIGNAL(timeout()),this, SLOT(onTimer()));
+        m_Timer.start(500);
+    }
+signals:
+    void clipboardChanged(QClipboard::Mode mode);
+protected slots:
+    void onTimer(){
+        QString text = getCurrentClipboardValue();
+        if (text.isEmpty())
+            return;
+        if (text.compare(m_LastClipboardValue)==0)
+            return;
+        m_LastClipboardValue = text;
+        emit clipboardChanged(QClipboard::Clipboard);
+    }
+};
 
 class cClipboardManager : public QObject
 {
@@ -93,6 +141,9 @@ protected:
     QByteArray          m_SecretKey;
     QString             m_LastClipboard;
     QClipboard*         m_Clipboard;
+#ifdef Q_OS_MAC
+    cMacClipboardMonitor m_ClipboardMonitor;
+#endif
     void loadPreferences();    
     void sendClipboardText(QString text);
     void receivedNetworkPackage(QByteArray &package, QHostAddress address);

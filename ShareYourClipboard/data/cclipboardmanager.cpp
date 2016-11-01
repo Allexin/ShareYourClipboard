@@ -697,12 +697,19 @@ void cClipboardManager::setState(cClipboardManager::eClipboardState newState)
     emit onStateChanged(m_CurrentState);
 }
 
-cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0),m_FileSaver(this)
+cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0),
+    #ifdef Q_OS_MAC
+    m_ClipboardMonitor(clipboard),
+    #endif
+    m_FileSaver(this)
 {
     m_LastClipboard = "";
     connect(&m_NetworkManager,SIGNAL(dataReceived(QByteArray&,QHostAddress)), this, SLOT(onNetworkDataReceived(QByteArray&,QHostAddress)));
     m_Clipboard = clipboard;
     connect(clipboard, SIGNAL(changed(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
+#ifdef Q_OS_MAC
+    connect(&m_ClipboardMonitor, SIGNAL(clipboardChanged(QClipboard::Mode)),this, SLOT(onClipboardReceived(QClipboard::Mode))) ;
+#endif
     m_CurrentState = ENABLED;
 
     connect(&m_FileSaver,SIGNAL(onStop()), this, SLOT(onDownloadingStop()));
@@ -710,8 +717,11 @@ cClipboardManager::cClipboardManager(QClipboard* clipboard) : QObject(0),m_FileS
     connect(&m_HotKeysManager,SIGNAL(activated(size_t)),this,SLOT(onHotKeys(size_t)));
 
     m_PasteFilesHotkey=1;
+#ifdef Q_OS_MAC
+    m_HotKeysManager.registerHotkey("Meta+Alt+V",m_PasteFilesHotkey);
+#else
     m_HotKeysManager.registerHotkey("Ctrl+Alt+V",m_PasteFilesHotkey);
-
+#endif
 
     loadPreferences();
 }
@@ -733,17 +743,29 @@ QString cClipboardManager::getAddress()
 
 void cClipboardManager::onClipboardReceived(QClipboard::Mode mode)
 {
+    qDebug() << "clipboard event";
     if (mode!=QClipboard::Clipboard)
         return;
 
     const QMimeData *mimeData = m_Clipboard->mimeData();
     if (mimeData->hasText()) {
-        QString clipboard = mimeData->text();
+        QString clipboard;
+
+        QList<QUrl> urls = mimeData->urls();
+        if (urls.size()>0){
+            clipboard = urls[0].toString();
+            for (int i = 1; i<urls.size(); i++)
+                clipboard += "\n" +urls[i].toString();
+        }
+        else{
+            clipboard = mimeData->text();
+        }
         qDebug() << "clipboard captured: " <<clipboard;
         if (clipboard!=m_LastClipboard){
             sendClipboardText(clipboard);
         }
     }
+
 }
 
 void cClipboardManager::onNetworkDataReceived(QByteArray &data, QHostAddress address)
@@ -792,4 +814,5 @@ void cClipboardManager::cancelDownloading()
 {
     m_FileSaver.stopDownloading();
 }
+
 

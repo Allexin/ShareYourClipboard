@@ -43,8 +43,10 @@ cTrayIcon::cTrayIcon(cClipboardManager *ClipboardManager):QSystemTrayIcon()
 
 void cTrayIcon::onTray(QSystemTrayIcon::ActivationReason reason)
 {
+#ifndef Q_OS_MAC
     if (reason==QSystemTrayIcon::Trigger)
         emit switchState();
+#endif
 }
 
 void cTrayIcon::setState(cClipboardManager::eClipboardState state)
