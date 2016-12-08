@@ -17,4 +17,5 @@ Three tips:
 
 #Build
 Just use QtCreator  
-Not tested undex Mac OS X
+Works fine under modern Windows, Linux and Mac OS X.
+Have issue under Windows XP(some times app may block CopyPaste on XP)
